@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>2036 健康點餐台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: left column = three ordering steps; right column = sticky nutrition dashboard. Stacks on phones with the dashboard right after the main dish. */
+:root{
+  --bg:#F3F6F1; --surface:#FFFFFF; --ink:#1C2A22; --muted:#5E6D63; --line:#D9E1D8;
+  --leaf:#2E7A55; --leaf-soft:#E1EFE6; --yolk:#B97F0C; --yolk-soft:#FBF0D6;
+  --warn:#BE4128; --warn-soft:#F8E2DC;
+  --p:#2E7A55; --c:#D9A12A; --f:#C9694F;
+  --display:"Huninn","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111814; --surface:#19221D; --ink:#E4ECE6; --muted:#9AAAA0; --line:#2C3830;
+  --leaf:#62BE8F; --leaf-soft:#1E3227; --yolk:#E9B347; --yolk-soft:#382E16;
+  --warn:#EC7A62; --warn-soft:#3B211B; --p:#62BE8F; --c:#E2B048; --f:#E08467; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111814; --surface:#19221D; --ink:#E4ECE6; --muted:#9AAAA0; --line:#2C3830;
+  --leaf:#62BE8F; --leaf-soft:#1E3227; --yolk:#E9B347; --yolk-soft:#382E16;
+  --warn:#EC7A62; --warn-soft:#3B211B; --p:#62BE8F; --c:#E2B048; --f:#E08467; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;padding:0 16px}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 48px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin-bottom:24px}
+.eyebrow{font-size:12px;letter-spacing:.12em;color:var(--leaf);font-weight:700}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4vw,40px);line-height:1.15;margin:4px 0 0;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:46ch}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;grid-template-areas:"m d" "s d" "k d";gap:20px 28px;align-items:start}
+#stepMain{grid-area:m}#stepSide{grid-area:s}#stepDrink{grid-area:k}
+#dash{grid-area:d;position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"m" "d" "s" "k"}#dash{position:static}}
+section.step{min-width:0}
+.step-head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.step-no{font-family:var(--mono);font-size:13px;color:var(--leaf);border:1.5px solid var(--leaf);border-radius:999px;padding:0 9px;line-height:22px}
+h2{font-family:var(--display);font-weight:400;font-size:22px;margin:0}
+.step-head span.hint{color:var(--muted);font-size:13px}
+.mains{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+button{font:inherit;color:inherit}
+.dish{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:12px;background:var(--surface);border:1.5px solid var(--line);transition:border-color .15s,transform .15s}
+.dish:hover{border-color:var(--leaf)}
+.dish:focus-visible{outline:3px solid var(--leaf);outline-offset:2px}
+.dish[aria-pressed="true"]{border-color:var(--leaf);background:var(--leaf-soft)}
+.dish .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.dish .name{font-weight:700;font-size:16px}
+.kcal{font-family:var(--mono);font-weight:600;font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.kcal small{font-weight:500;color:var(--muted);font-size:11px;margin-left:2px}
+.dish .desc{color:var(--muted);font-size:13px;line-height:1.5}
+.tags{display:flex;flex-wrap:wrap;gap:4px}
+.tag{font-size:11.5px;padding:1px 7px;border-radius:5px;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 14px;border-radius:12px;background:var(--surface);border:1.5px solid var(--line)}
+.opt:hover{border-color:var(--leaf)}
+.opt:focus-visible{outline:3px solid var(--leaf);outline-offset:2px}
+.opt[aria-pressed="true"]{border-color:var(--leaf);background:var(--leaf-soft)}
+.opt.low{opacity:.78}
+.opt .name{font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:11.5px;font-weight:700;padding:0 8px;border-radius:999px;line-height:20px}
+.badge.rec{background:var(--leaf);color:var(--surface)}
+.badge.ok{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.badge.less{background:var(--warn-soft);color:var(--warn)}
+.reasons{grid-column:1/-1;margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--muted)}
+.reasons li{padding-left:16px;position:relative}
+.reasons li::before{content:"+";position:absolute;left:2px;color:var(--leaf);font-weight:700}
+.reasons li.neg::before{content:"−";color:var(--warn)}
+/* dashboard */
+#dash{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:18px}
+.dash-label{font-size:12px;letter-spacing:.1em;color:var(--muted);font-weight:700}
+.big{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.big .num{font-family:var(--mono);font-weight:600;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.big .of{color:var(--muted);font-family:var(--mono);font-size:14px}
+.meter{height:10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);overflow:hidden;position:relative}
+.meter i{display:block;height:100%;background:var(--leaf);border-radius:999px;transition:width .35s ease}
+.meter.over i{background:var(--warn)}
+.status{font-size:13px;font-weight:700}
+.status.ok{color:var(--leaf)}.status.over{color:var(--warn)}
+.seg{display:flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{all:unset;cursor:pointer;flex:1;text-align:center;padding:6px 4px;font-size:12.5px;line-height:1.3;color:var(--muted)}
+.seg button+button{border-left:1.5px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--leaf-soft);color:var(--ink);font-weight:700}
+.seg button:focus-visible{outline:3px solid var(--leaf);outline-offset:-3px}
+.seg b{display:block;font-family:var(--mono);font-size:13px}
+table.rows{width:100%;border-collapse:collapse;font-size:14px}
+table.rows td{padding:5px 0;border-bottom:1px dashed var(--line)}
+table.rows td:last-child{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+table.rows td.empty{color:var(--muted)}
+.macro{display:flex;height:14px;border-radius:6px;overflow:hidden;gap:2px}
+.macro i{display:block;height:100%;transition:flex-basis .35s ease}
+.legend{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12px;margin-top:8px}
+.legend div{display:flex;flex-direction:column}
+.legend b{font-family:var(--mono);font-size:15px;font-variant-numeric:tabular-nums}
+.legend span.ref{color:var(--muted)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.list li{padding:7px 10px;border-radius:8px;line-height:1.5}
+.list.good li{background:var(--leaf-soft)}
+.list.tip li{background:var(--yolk-soft)}
+.note{font-size:12px;color:var(--muted);line-height:1.55;border-top:1px solid var(--line);padding-top:12px}
+/* confirm button + carbon */
+.btn{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;font-weight:700;border-radius:12px;padding:12px 16px;background:var(--leaf);color:var(--surface);font-size:16px;line-height:1.3}
+.btn:hover{filter:brightness(1.08)}
+.btn:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.btn.ghost{background:transparent;color:var(--leaf);border:1.5px solid var(--leaf);padding:8px 14px;font-size:14px}
+.co2{font-family:var(--mono);font-size:12.5px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.lv-low{background:var(--leaf-soft);color:var(--leaf)}
+.lv-mid{background:var(--yolk-soft);color:var(--yolk)}
+.lv-high{background:var(--warn-soft);color:var(--warn)}
+.co2row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
+#mobileConfirm{display:none;margin-top:20px}
+@media (max-width:900px){#dashConfirm{display:none}#mobileConfirm{display:flex}}
+/* confirm view */
+.c-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.c-grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px 28px;align-items:start;margin-top:20px}
+@media (max-width:900px){.c-grid{grid-template-columns:minmax(0,1fr)}}
+.c-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.c-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:14px 16px;border-radius:12px;background:var(--surface);border:1.5px solid var(--line)}
+.c-cat{font-size:12px;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.c-name{font-weight:700;font-size:17px}
+.c-meta{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:13px;color:var(--muted)}
+.c-item .story-btn{grid-row:1/4;grid-column:2}
+.story-btn{all:unset;box-sizing:border-box;cursor:pointer;font-size:13.5px;font-weight:700;color:var(--leaf);border:1.5px solid var(--leaf);border-radius:999px;padding:6px 12px;white-space:nowrap}
+.story-btn:hover{background:var(--leaf-soft)}
+.story-btn:focus-visible{outline:3px solid var(--leaf);outline-offset:2px}
+.c-empty{padding:14px 16px;border-radius:12px;border:1.5px dashed var(--line);color:var(--muted);font-size:14px}
+.c-sum{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:16px;position:sticky;top:16px}
+@media (max-width:900px){.c-sum{position:static}}
+.stack{display:flex;height:14px;border-radius:6px;overflow:hidden;gap:2px;background:var(--bg)}
+.stack i{display:block;height:100%}
+.keys{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:3px;font-size:13px}
+.keys li{display:flex;justify-content:space-between;gap:8px}
+.keys li span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums}
+/* story dialog */
+dialog#story{border:none;border-radius:16px;padding:0;background:var(--surface);color:var(--ink);width:min(560px,calc(100% - 32px));max-height:calc(100% - 48px);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog#story::backdrop{background:rgba(10,20,14,.55)}
+.d-in{padding:20px 22px 22px;display:flex;flex-direction:column;gap:14px}
+.d-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.d-top h3{font-family:var(--display);font-weight:400;font-size:24px;margin:2px 0 0;line-height:1.25}
+.x{all:unset;cursor:pointer;width:34px;height:34px;border-radius:999px;display:grid;place-items:center;font-size:20px;color:var(--muted);border:1.5px solid var(--line);flex:none}
+.x:hover{color:var(--ink);border-color:var(--ink)}
+.x:focus-visible{outline:3px solid var(--leaf);outline-offset:2px}
+.facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;margin:0;font-size:14px;background:var(--bg);border-radius:10px;padding:10px 14px}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0;font-weight:500}
+.facts dd.mono{font-family:var(--mono);font-size:13px}
+.story-text{margin:0;font-size:15px;line-height:1.8}
+.route{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13.5px}
+.route span.node{padding:2px 9px;border-radius:6px;background:var(--leaf-soft);font-weight:500}
+.route span.leg{color:var(--muted);font-family:var(--mono);font-size:12.5px}
+table.calc{width:100%;border-collapse:collapse;font-size:13.5px}
+table.calc td{padding:5px 0;border-bottom:1px dashed var(--line);vertical-align:top}
+table.calc td.f{color:var(--muted);font-family:var(--mono);font-size:12px;padding-left:8px}
+table.calc td:last-child{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:8px}
+table.calc tr.total td{border-bottom:none;font-weight:700;padding-top:8px}
+table.calc .grp{font-weight:700}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+ <div id="orderView">
+  <header>
+    <div>
+      <div class="eyebrow">內壢高中 · 2036 AI 未來健康餐廳</div>
+      <h1>健康點餐台</h1>
+    </div>
+    <p>先選一道主菜，右邊會算出預估熱量；接著系統依主菜的營養特性，排序推薦附餐和飲料湯品，並說明為什麼這樣搭比較好。</p>
+  </header>
+
+  <div class="layout">
+    <section class="step" id="stepMain">
+      <div class="step-head"><span class="step-no">1</span><h2>選主菜</h2><span class="hint">點一下選取</span></div>
+      <div class="mains" id="mains"></div>
+    </section>
+
+    <aside id="dash" aria-live="polite">
+      <div>
+        <div class="dash-label">本餐預估熱量</div>
+        <div class="big"><span class="num" id="total">0</span><span class="of" id="of">/ 800 kcal</span></div>
+        <div class="meter" id="meter"><i id="meterBar" style="width:0"></i></div>
+        <div class="status" id="status" style="margin-top:6px"></div>
+      </div>
+      <div>
+        <div class="dash-label" style="margin-bottom:6px">我的一餐目標</div>
+        <div class="seg" id="targets"></div>
+      </div>
+      <table class="rows" id="rows"></table>
+      <div class="co2row"><span class="dash-label">本餐碳足跡</span><span class="co2" id="dashCo2"></span></div>
+      <button class="btn" id="dashConfirm" type="button">確認點餐 ›</button>
+      <div>
+        <div class="dash-label" style="margin-bottom:8px">三大營養素熱量占比</div>
+        <div class="macro" id="macro"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div>
+        <div class="dash-label" style="margin-bottom:6px">鈉（一餐參考 800 mg）</div>
+        <div class="meter" id="naMeter"><i id="naBar" style="width:0"></i></div>
+        <div style="font-family:var(--mono);font-size:13px;margin-top:4px" id="naText"></div>
+      </div>
+      <div>
+        <div class="dash-label" style="margin-bottom:8px">這樣搭配的好處</div>
+        <ul class="list good" id="good"></ul>
+      </div>
+      <div id="tipWrap">
+        <div class="dash-label" style="margin-bottom:8px">可以再調整</div>
+        <ul class="list tip" id="tips"></ul>
+      </div>
+      <p class="note">熱量與營養素為一般份量的估算值，實際會依餐廳份量和做法不同。建議用衛福部「食品營養成分資料庫」查核，並檢查 AI 推薦的理由是否合理。</p>
+    </aside>
+
+    <section class="step" id="stepSide">
+      <div class="step-head"><span class="step-no">2</span><h2>選附餐</h2><span class="hint">主食、蔬菜等，最多選 2 樣</span></div>
+      <div class="opts" id="sides"></div>
+    </section>
+
+    <section class="step" id="stepDrink">
+      <div class="step-head"><span class="step-no">3</span><h2>選飲料或湯</h2><span class="hint">依主菜排序推薦</span></div>
+      <div class="opts" id="drinks"></div>
+      <button class="btn" id="mobileConfirm" type="button">確認點餐 ›</button>
+    </section>
+  </div>
+ </div>
+
+ <main id="confirmView" hidden>
+  <div class="c-top">
+    <button class="btn ghost" id="backBtn" type="button">‹ 返回修改</button>
+    <span class="eyebrow">內壢高中 · 2036 AI 未來健康餐廳</span>
+  </div>
+  <h1>確認你的餐點</h1>
+  <p style="color:var(--muted);margin:6px 0 0;max-width:52ch">每道菜旁邊都有「產銷故事」，點開可以看到食材從哪裡來、誰種的，以及這道菜的碳足跡是怎麼算出來的。</p>
+  <div class="c-grid">
+    <ol class="c-list" id="cList"></ol>
+    <aside class="c-sum" id="cSum" aria-live="polite"></aside>
+  </div>
+ </main>
+</div>
+
+<dialog id="story" aria-labelledby="dTitle"><div class="d-in" id="dBody"></div></dialog>
+
+<script>
+// 營養數值：一般份量估算（kcal、蛋白質P/碳水C/脂肪F 克、鈉 mg）
+const MAINS=[
+ {id:"chicken",name:"香煎雞腿排",desc:"去骨雞腿一片，約 150 g",kcal:330,P:30,C:2,F:22,Na:550,veg:0,fried:false,tags:["高蛋白"]},
+ {id:"pork",name:"酥炸排骨",desc:"裹粉油炸豬大排一片",kcal:450,P:26,C:18,F:30,Na:650,veg:0,fried:true,tags:["油炸","高脂"]},
+ {id:"mackerel",name:"鹽烤鯖魚",desc:"鯖魚半尾，鹽烤",kcal:320,P:22,C:0,F:25,Na:700,veg:0,fried:false,tags:["Omega-3","偏鹹"]},
+ {id:"salmon",name:"嫩煎鮭魚",desc:"鮭魚排一片，約 120 g",kcal:300,P:30,C:0,F:19,Na:300,veg:0,fried:false,tags:["Omega-3","低鈉"]},
+ {id:"beef",name:"紅燒牛腱",desc:"牛腱切片，約 150 g",kcal:300,P:36,C:6,F:14,Na:900,veg:0,fried:false,tags:["高蛋白","高鈉"]},
+ {id:"breast",name:"舒肥雞胸",desc:"低溫烹調雞胸肉，約 150 g",kcal:180,P:35,C:0,F:4,Na:400,veg:0,fried:false,tags:["高蛋白","低脂"]},
+ {id:"tofu",name:"照燒板豆腐",desc:"煎板豆腐淋照燒醬，蛋奶素",kcal:260,P:18,C:12,F:15,Na:600,veg:0,fried:false,tags:["植物蛋白","素食"]},
+ {id:"hamburg",name:"起司漢堡排",desc:"牛豬混合絞肉排，鋪起司",kcal:420,P:28,C:8,F:30,Na:750,veg:0,fried:false,tags:["高脂"]},
+];
+const SIDES=[
+ {id:"brownrice",name:"糙米飯（一碗）",kcal:260,P:5,C:55,F:2,Na:5,t:["carb","whole"]},
+ {id:"rice",name:"白飯（一碗）",kcal:280,P:5,C:62,F:1,Na:0,t:["carb","refined"]},
+ {id:"greens",name:"燙地瓜葉",kcal:60,P:3,C:6,F:3,Na:150,t:["veg"]},
+ {id:"cuke",name:"涼拌小黃瓜",kcal:50,P:1,C:5,F:3,Na:300,t:["veg"]},
+ {id:"roastveg",name:"烤時蔬（櫛瓜、甜椒）",kcal:90,P:2,C:9,F:5,Na:180,t:["veg"]},
+ {id:"tofu",name:"和風涼拌豆腐",kcal:120,P:10,C:4,F:7,Na:320,t:["protein"]},
+ {id:"egg",name:"茶碗蒸",kcal:90,P:7,C:3,F:5,Na:380,t:["protein"]},
+ {id:"fruit",name:"季節水果盤（芭樂、奇異果）",kcal:80,P:1,C:19,F:0,Na:5,t:["fruit"]},
+ {id:"sweetpotato",name:"蒸地瓜",kcal:130,P:2,C:30,F:0,Na:20,t:["carb","whole"]},
+ {id:"fries",name:"炸薯條",kcal:380,P:4,C:45,F:19,Na:450,t:["fried","carb"]},
+];
+const DRINKS=[
+ {id:"greentea",name:"無糖綠茶",kcal:0,P:0,C:0,F:0,Na:10,t:["nosugar"]},
+ {id:"soda",name:"無糖檸檬氣泡水",kcal:5,P:0,C:1,F:0,Na:10,t:["nosugar"]},
+ {id:"soy",name:"無糖豆漿",kcal:110,P:8,C:6,F:5,Na:20,t:["protein","nosugar"]},
+ {id:"milk",name:"低脂鮮奶",kcal:110,P:8,C:12,F:4,Na:110,t:["protein","calcium"]},
+ {id:"vegsoup",name:"蔬菜清湯",kcal:40,P:2,C:6,F:1,Na:450,t:["vegsoup","soup"]},
+ {id:"miso",name:"味噌豆腐湯",kcal:60,P:4,C:5,F:2,Na:700,t:["soup","salty"]},
+ {id:"corn",name:"玉米濃湯",kcal:180,P:4,C:22,F:9,Na:750,t:["soup","creamy","salty"]},
+ {id:"bubble",name:"珍珠奶茶（全糖）",kcal:550,P:3,C:100,F:15,Na:80,t:["sugar"]},
+];
+const TARGETS=[{v:650,l:"活動量低"},{v:800,l:"一般"},{v:950,l:"運動量大"}];
+
+// ===== 產銷履歷清單（虛擬教學範例：農場、人物皆為虛構）=====
+// legs：運輸路段 [方式, 公里]；ing：食材 [名稱, 公克, 生產排放係數 kg CO2e/kg]；kwh：烹調用電；pack：包裝 kg CO2e
+const TRACE={
+ "main:chicken":{farm:"青埔放牧雞場",place:"雲林縣 斗六市",who:"陳志豪（第二代場主）",dl:"屠宰日",date:"2036-11-13",legs:[["truck",190]],ing:[["去骨雞腿",150,6.9]],kwh:0.4,
+  story:"志豪接手爸爸的雞場後，把雞舍旁的龍眼園改成放牧區，雞白天在樹下找蟲、晒太陽，晚上回舍休息。飼料用雲林在地契作的玉米和黃豆，少了一大段進口穀物的運輸。雞養到 110 天才出場，肉質比較緊實；雞糞和落葉一起堆肥，再回到龍眼園當肥料。"},
+ "main:pork":{farm:"南風養豬合作社",place:"屏東縣 萬丹鄉",who:"合作社 12 戶養豬人家",dl:"屠宰日",date:"2036-11-12",legs:[["truck",340]],ing:[["豬大排",180,7.6],["地瓜粉",20,1.6],["炸油（大豆油）",25,6.3]],kwh:1.2,
+  story:"南風合作社把豬舍的排泄物集中送進沼氣槽發酵，產生的沼氣拿來發電，一年約可供豬場三成用電，也減少直接排放的甲烷。不過這道菜要裹粉油炸，炸油本身的碳足跡和油炸用電，讓它比香煎的做法多出不少排放。"},
+ "main:mackerel":{farm:"順風號漁船",place:"宜蘭縣 南方澳漁港",who:"林永福 船長",dl:"捕撈日",date:"2036-11-14",legs:[["truck",120]],ing:[["鯖魚",160,3.0]],kwh:0.6,
+  story:"秋冬是鯖魚最肥的季節。林船長每天凌晨出港，當天下午漁獲就進冷藏車，隔天中午送到學校餐廳。野生魚不需要飼料，碳足跡主要來自漁船燃油。林船長說：「魚要留一些給明年。」所以他只留體長超過 30 公分的鯖魚。"},
+ "main:salmon":{farm:"峽灣海養場",place:"挪威 西部峽灣",who:"Ingrid 與養殖團隊",dl:"收成日",date:"2036-10-20",legs:[["ship",19000],["truck",60]],ing:[["鮭魚排",120,12]],kwh:0.4,
+  story:"台灣海水太溫暖，鮭魚幾乎都要進口。這片鮭魚來自挪威峽灣的海上箱網，冷凍後搭貨櫃船航行約 19,000 公里到基隆港。聽起來很遠，但海運每公斤每公里的排放很低，整趟航程只占碳足跡一小部分；真正的大宗是養殖用的飼料。如果改成空運，運輸排放會增加約 70 倍。"},
+ "main:beef":{farm:"綠草原牧場",place:"澳洲 昆士蘭",who:"McAllen 家族牧場",dl:"屠宰日",date:"2036-10-02",legs:[["ship",7500],["truck",50]],ing:[["牛腱",150,40],["醬油、冰糖、辛香料",30,1.2]],kwh:2.0,
+  story:"牛是反芻動物，胃裡的微生物消化牧草時會產生甲烷，以 100 年計算，甲烷的暖化效果約是二氧化碳的 28 倍，所以牛肉是所有肉類中碳足跡最高的。紅燒還要小火燉 2 小時，烹調用電也比較多。偶爾吃很美味，但想降低碳足跡，換成雞肉或豆腐效果最明顯。"},
+ "main:breast":{farm:"和美友善雞舍",place:"彰化縣 和美鎮",who:"蔡佩君",dl:"屠宰日",date:"2036-11-13",legs:[["truck",150]],ing:[["雞胸肉",150,6.9]],kwh:1.5,
+  story:"和美友善雞舍採平飼，每平方公尺不超過 8 隻雞，雞舍屋頂裝了太陽能板。雞胸肉用 60°C 低溫水浴慢煮 90 分鐘，雖然時間長，但溫度低、鍋子加蓋保溫，用電沒有想像中多。脂肪少、蛋白質高，是運動社團最常點的主菜。"},
+ "main:tofu":{farm:"後壁黃豆工坊",place:"台南市 後壁區",who:"王家豆腐第三代 王俊宏",dl:"製作日",date:"2036-11-15",legs:[["truck",260]],ing:[["板豆腐",200,3.2],["照燒醬",20,1.2]],kwh:0.4,
+  story:"工坊的黃豆來自後壁的契作田。黃豆根部的根瘤菌能把空氣中的氮固定在土壤裡，田裡幾乎不用施氮肥。豆腐每天清晨現做，留下的豆渣送去養豬場當飼料。同樣提供蛋白質，以每公斤計算，豆腐的生產排放不到牛肉的十分之一。"},
+ "main:hamburg":{farm:"台南肉品市場 × 嘉義乳品坊",place:"台南市、嘉義縣",who:"餐廳主廚 張文傑 自製",dl:"製作日",date:"2036-11-15",legs:[["truck",260]],ing:[["牛絞肉",70,40],["豬絞肉",70,7.6],["切達起司",20,24],["麵包粉",10,1.6]],kwh:0.6,
+  story:"漢堡排用牛、豬絞肉各半混合，再鋪一片切達起司。起司大約要 10 公斤牛奶才能做出 1 公斤，所以碳足跡也不低。雖然牛肉只占一半，這道菜的排放仍是主菜裡第二高；如果把牛肉全換成豬肉，可以減少一半以上。"},
+ "side:brownrice":{farm:"富里山泉稻場",place:"花蓮縣 富里鄉",who:"Kacaw（阿美族農友）",dl:"收割日",date:"2036-10-25",legs:[["truck",210]],ing:[["糙米（生米重）",80,4.5]],kwh:0.3,
+  story:"水稻田長期淹水時，土壤裡的微生物會產生甲烷。Kacaw 改用「乾濕交替」灌溉，稻子分蘗後讓田曬幾天再放水，甲烷排放可減少約三成。糙米只去掉外殼，保留米糠和胚芽，纖維和維生素 B 群都比白米多。"},
+ "side:rice":{farm:"新屋稻田班",place:"桃園市 新屋區",who:"黃秀蘭",dl:"收割日",date:"2036-10-18",legs:[["truck",25]],ing:[["白米（生米重）",80,4.5]],kwh:0.3,
+  story:"新屋稻田班就在學校附近，從田裡到餐廳只有 25 公里，是整份菜單運輸距離最短的食材之一。黃阿姨說，桃園的稻子一年兩收，這批是十月收成的二期稻。白米口感軟 Q，但碾米時去掉了米糠，營養比糙米少一些。"},
+ "side:greens":{farm:"水圳邊菜園",place:"桃園市 觀音區",who:"吳大哥",dl:"採收日",date:"2036-11-16",legs:[["truck",18]],ing:[["地瓜葉",120,0.4]],kwh:0.2,
+  story:"地瓜葉種在觀音的灌溉水圳旁，長得快、不太需要農藥，兩三週就能收一次。吳大哥每天早上 6 點採收，9 點前送到餐廳。葉菜類生產排放很低，加上距離近，是碳足跡最低的附餐之一。"},
+ "side:cuke":{farm:"大園網室農場",place:"桃園市 大園區",who:"李佳穎",dl:"採收日",date:"2036-11-15",legs:[["truck",20]],ing:[["小黃瓜",120,0.5],["蒜頭、米醋",10,1.0]],kwh:0,
+  story:"網室栽培用防蟲網代替大部分農藥。小黃瓜採收後拍碎切段，用蒜頭和米醋涼拌，不需要開火。少了加熱這一步，也就沒有烹調用電的排放。"},
+ "side:roastveg":{farm:"埔里高冷菜園",place:"南投縣 埔里鎮",who:"賴阿伯",dl:"採收日",date:"2036-11-14",legs:[["truck",200]],ing:[["櫛瓜",80,0.6],["甜椒",70,0.9],["橄欖油",5,5.4]],kwh:0.5,
+  story:"埔里日夜溫差大，甜椒顏色特別鮮豔。蔬菜淋少量橄欖油，放進 200°C 烤箱烤 15 分鐘。蔬菜本身排放很低，烤箱用電反而占了這道菜碳足跡的一大半。"},
+ "side:tofu":{farm:"後壁黃豆工坊",place:"台南市 後壁區",who:"王家豆腐第三代 王俊宏",dl:"製作日",date:"2036-11-15",legs:[["truck",260]],ing:[["嫩豆腐",120,3.2],["柴魚醬油",15,1.0]],kwh:0,
+  story:"和主菜的照燒豆腐來自同一間工坊，這裡用口感更滑的嫩豆腐，冷藏後淋上柴魚醬油、撒蔥花。不用加熱，蛋白質又多，是低碳又能補蛋白質的好選擇。"},
+ "side:egg":{farm:"山腳下平飼蛋場",place:"苗栗縣 公館鄉",who:"劉美玲",dl:"產蛋日",date:"2036-11-14",legs:[["truck",80]],ing:[["雞蛋",60,4.7],["柴魚高湯",80,0.3]],kwh:0.3,
+  story:"母雞可以在鋪了稻殼的地面自由走動、沙浴。每顆蛋都印有履歷碼，掃描就能看到產蛋日期。茶碗蒸用雞蛋加柴魚高湯，放進蒸籠蒸 12 分鐘。"},
+ "side:fruit":{farm:"燕巢芭樂園 × 紐西蘭果園",place:"高雄市 燕巢區／紐西蘭",who:"鄭家果園等",dl:"採收日",date:"2036-11-11",legs:[["truck",330],["ship",9000]],ing:[["芭樂",80,0.7],["奇異果",60,0.7]],kwh:0,
+  story:"芭樂來自燕巢，那裡的泥岩土壤讓芭樂特別脆甜；奇異果則從紐西蘭搭船進口。兩種水果都富含維生素 C，一份就能達到每日建議量。水果不用烹調，碳足跡主要來自種植和冷藏運輸。"},
+ "side:sweetpotato":{farm:"水林沙地地瓜田",place:"雲林縣 水林鄉",who:"蘇建國",dl:"採收日",date:"2036-09-28",legs:[["truck",190]],ing:[["地瓜",150,0.4]],kwh:0.4,
+  story:"地瓜種在濁水溪出海口附近的沙質土，不太需要施肥。這批 9 月採收，在倉庫放了一個多月「後熟」，澱粉轉成糖分，蒸起來更甜。根莖類是碳足跡很低、又有飽足感的主食。"},
+ "side:fries":{farm:"愛達荷馬鈴薯加工廠",place:"美國 愛達荷州",who:"進口冷凍食品",dl:"製造日",date:"2036-08-30",legs:[["ship",11000],["truck",60]],ing:[["冷凍薯條（馬鈴薯）",130,0.5],["炸油（大豆油）",20,6.3]],kwh:1.0,
+  story:"這是美國進口的冷凍半成品：馬鈴薯在產地切條、預炸後冷凍，搭船跨越太平洋，到台灣後一直存放在 −18°C 冷凍庫，到餐廳再油炸一次。炸油加上兩次加熱和冷凍保存，是這道附餐碳足跡偏高的主因。"},
+ "drink:greentea":{farm:"三峽山茶園",place:"新北市 三峽區",who:"周家茶園",dl:"採摘日",date:"2036-04-10",legs:[["truck",40]],ing:[["綠茶茶葉",3,10]],kwh:0.15,
+  story:"茶葉來自三峽山區春天採摘的碧螺春。一杯茶只用 3 公克茶葉，碳足跡主要來自煮水用電。餐廳用大容量保溫壺一次煮好，比一杯一杯煮更省電。"},
+ "drink:soda":{farm:"九如檸檬園",place:"屏東縣 九如鄉",who:"潘志明",dl:"採收日",date:"2036-11-10",legs:[["truck",360]],ing:[["檸檬片",15,0.5],["氣泡用 CO₂",4,1.0]],kwh:0.08,
+  story:"現切屏東檸檬片加進氣泡水。氣泡水由餐廳氣泡水機現打，用可重複填充的 CO₂ 鋼瓶，不必運送一瓶瓶包裝水，也少了寶特瓶。"},
+ "drink:soy":{farm:"後壁黃豆工坊",place:"台南市 後壁區",who:"王家豆腐第三代 王俊宏",dl:"製作日",date:"2036-11-15",legs:[["truck",260]],ing:[["黃豆",40,2.0]],kwh:0.3,
+  story:"和豆腐用同一批後壁黃豆：泡水、研磨、煮沸再過濾，豆渣送去當飼料。一杯就有 8 公克蛋白質，碳足跡卻不到鮮奶的三分之一。"},
+ "drink:milk":{farm:"柳營綠野牧場",place:"台南市 柳營區",who:"許文雄",dl:"擠乳日",date:"2036-11-15",legs:[["truck",280]],ing:[["低脂鮮乳",240,3.2]],kwh:0.05,
+  story:"牧場養了約 300 頭乳牛，夏天用灑水和大型風扇幫牛降溫，讓牛不會熱到吃不下草。牛奶擠出後 4°C 冷藏、當天裝瓶。乳牛消化時也會產生甲烷，所以乳製品碳足跡比植物飲品高，但它能提供成長期需要的鈣質。"},
+ "drink:vegsoup":{farm:"桃園在地農友聯合",place:"桃園市 觀音區、新屋區",who:"餐廳中央廚房",dl:"製作日",date:"2036-11-16",legs:[["truck",20]],ing:[["高麗菜、紅蘿蔔、洋蔥",150,0.4]],kwh:0.5,
+  story:"高湯用切菜時留下的高麗菜心、蘿蔔皮和洋蔥一起熬，減少廚餘。小火熬 40 分鐘，蔬菜的甜味就出來了，不必加太多鹽。"},
+ "drink:miso":{farm:"蘭陽小釀造所",place:"宜蘭縣 員山鄉",who:"游淑芬",dl:"熟成完成",date:"2036-09-01",legs:[["truck",70]],ing:[["味噌",20,1.5],["嫩豆腐",50,3.2],["海帶芽",3,1.0]],kwh:0.3,
+  story:"味噌用台灣黃豆和米麴發酵 6 個月，湯裡再加嫩豆腐和海帶芽。碳足跡不高，但味噌鈉含量高，主菜偏鹹時可以少喝幾口。"},
+ "drink:corn":{farm:"虎尾玉米田 × 乳品供應商",place:"雲林縣 虎尾鎮",who:"林正義 等",dl:"採收日",date:"2036-11-08",legs:[["truck",190]],ing:[["玉米",60,1.0],["鮮奶油、奶油",20,12],["麵粉",10,1.6],["牛奶",100,3.2]],kwh:0.5,
+  story:"玉米本身碳足跡很低，但濃湯要加鮮奶油、奶油和牛奶。鮮奶油和奶油是乳脂濃縮而成，一小匙就讓這碗湯的排放接近蔬菜清湯的三倍。"},
+ "drink:bubble":{farm:"多國原料混合",place:"東南亞、台灣",who:"手搖飲加工原料",dl:"製造日",date:"2036-10-15",legs:[["ship",3000],["truck",100]],ing:[["紅茶茶葉",5,10],["奶精粉",30,8],["砂糖",50,3.2],["粉圓（樹薯澱粉）",60,1.0]],kwh:0.8,pack:0.12,
+  story:"珍珠奶茶的原料來自各地：樹薯澱粉從東南亞進口，奶精粉和糖是工廠加工品。珍珠要煮 40 分鐘再燜 20 分鐘，加上塑膠杯和吸管，整杯的碳足跡比很多附餐還高，熱量也是全菜單最高。"},
+};
+// 碳足跡係數（教學用近似值）
+const EF_T={truck:0.0002,ship:0.000015,air:0.0011}; // kg CO2e / (kg·km)
+const MODE={truck:"冷藏貨車",ship:"貨櫃船",air:"空運"};
+const GRID=0.494;     // 台灣電力排放係數 kg CO2e / kWh（約略值）
+const SCOOTER=0.06;   // 機車每公里約 kg CO2e
+function carbon(key){
+  const t=TRACE[key];if(!t)return null;
+  const w=t.ing.reduce((a,i)=>a+i[1],0)/1000;
+  const prod=t.ing.map(([n,g,ef])=>({n,g,ef,v:g/1000*ef}));
+  const prodSum=prod.reduce((a,p)=>a+p.v,0);
+  const legs=t.legs.map(([m,km])=>({m,km,v:w*km*EF_T[m]}));
+  const trans=legs.reduce((a,l)=>a+l.v,0);
+  const cook=t.kwh*GRID,pack=t.pack||0;
+  return {w,prod,prodSum,legs,trans,cook,pack,total:prodSum+trans+cook+pack};
+}
+const kg=v=>v<0.005?"<0.01":v.toFixed(2);
+const lv=v=>v<0.4?["低碳","lv-low"]:v<1.5?["中碳","lv-mid"]:["高碳","lv-high"];
+const co2Tag=v=>{const [l,c]=lv(v);return `<span class="co2 ${c}" title="${l}">${kg(v)} kg CO₂e</span>`};
+
+let state={main:"chicken",sides:[],drink:null,target:800};
+try{const s=JSON.parse(localStorage.getItem("hop-state2")||"null");if(s&&MAINS.some(m=>m.id===s.main)&&Array.isArray(s.sides))state=Object.assign(state,s)}catch(e){}
+const save=()=>{try{localStorage.setItem("hop-state2",JSON.stringify(state))}catch(e){}};
+const byId=(arr,id)=>arr.find(x=>x.id===id)||null;
+const has=(x,t)=>x.t.includes(t);
+const fatty=m=>m.fried||m.F>=30;
+
+function scoreSide(s,m,target,picked){
+  let sc=0,r=[];
+  const others=picked.filter(x=>x.id!==s.id);
+  const otherCarb=others.some(x=>has(x,"carb")),otherVeg=others.some(x=>has(x,"veg"));
+  if(has(s,"veg")){ if(!otherVeg){sc+=3;r.push(["主菜只有肉／豆腐，沒有蔬菜，補一份青菜可增加膳食纖維和維生素，吃完比較有飽足感",1])} else {sc+=1;r.push(["已經選了一份蔬菜，再多一份也不錯",1])}
+    if(fatty(m)){sc+=1;r.push(["清爽的蔬菜可以平衡主菜的油膩",1])}}
+  if(has(s,"protein")){ if(m.P<22){sc+=3;r.push(["主菜蛋白質偏少，補蛋白質能讓血糖較穩定、比較耐餓",1])} else if(m.P>=30){sc-=1;r.push(["主菜蛋白質已經足夠，這項不是必要",0])} else {sc+=1;r.push(["溫和補充蛋白質，熱量不高",1])}}
+  if(has(s,"fruit")){sc+=1;r.push(["水果富含維生素C，可幫助身體吸收主菜裡的鐵質",1]); if(!otherVeg){sc+=1;r.push(["主菜缺蔬果，水果能補上一部分",1])}}
+  if(has(s,"carb")&&!has(s,"fried")){
+    if(otherCarb){sc-=3;r.push(["已經選了一份主食，再加一份澱粉容易過量",0])}
+    else{sc+=2;r.push(["主菜沒有澱粉，搭一份主食提供上課需要的能量",1])}
+    if(has(s,"whole")){sc+=1;r.push(["全穀／根莖類澱粉纖維多，血糖上升比較慢、比較耐餓",1])}
+    if(has(s,"refined")){r.push(["白飯是精緻澱粉，換成糙米飯能多攝取纖維和維生素B群",0])}}
+  if(has(s,"fried")){ if(fatty(m)){sc-=4;r.push(["主菜已經偏油，再加油炸會讓脂肪明顯過量",0])} else {sc-=2;r.push(["油炸食物熱量高、營養密度低",0])}}
+  const base=m.kcal+others.reduce((a,x)=>a+x.kcal,0);
+  if(base+s.kcal>target){sc-=2;r.push([`加上它會超過你的一餐目標 ${target} kcal`,0])}
+  return {sc,r};
+}
+function scoreDrink(d,m,target,sides){
+  let sc=0,r=[];
+  if(has(d,"sugar")){sc-=5;r.push(["一杯約 550 kcal，比主菜熱量還高，添加糖多、營養少",0])}
+  if(has(d,"nosugar")&&!has(d,"protein")){sc+=2;r.push(["沒有添加糖，不增加熱量",1]); if(fatty(m)){sc+=1;r.push(["清爽解膩，適合搭配油脂較多的主菜",1])}}
+  if(has(d,"protein")){ const sp=sides.some(x=>has(x,"protein")); if(m.P<25&&!sp){sc+=3;r.push(["主菜蛋白質偏少，用飲品補蛋白質是簡單的方法",1])} else {sc+=0;r.push(["提供蛋白質，但這餐的蛋白質已經夠了",1])}}
+  if(has(d,"calcium")){sc+=1;r.push(["補充鈣質，青少年骨骼成長需要",1])}
+  if(has(d,"vegsoup")){ if(!sides.some(x=>has(x,"veg"))){sc+=2;r.push(["湯裡有蔬菜，可以補這餐缺少的蔬菜",1])} else {sc+=1;r.push(["熱量低的湯，先喝湯能增加飽足感",1])}}
+  if(has(d,"salty")&&m.Na>=700){sc-=3;r.push([`主菜的鈉已約 ${m.Na} mg，再喝鹹湯容易超過一餐參考量`,0])}
+  else if(has(d,"soup")&&m.Na>=700){sc-=1;r.push(["主菜偏鹹，湯可以少喝幾口",0])}
+  if(has(d,"creamy")){sc-=1;r.push(["濃湯用奶油和麵粉勾芡，熱量比清湯高",0]); if(fatty(m)){sc-=2;r.push(["主菜已經偏油，濃湯會讓脂肪更多",0])}}
+  const base=m.kcal+sides.reduce((a,x)=>a+x.kcal,0);
+  if(base+d.kcal>target&&d.kcal>20){sc-=2;r.push([`加上它會超過一餐目標 ${target} kcal`,0])}
+  return {sc,r};
+}
+function ranked(list,fn){
+  const out=list.map(x=>({x,...fn(x)})).sort((a,b)=>b.sc-a.sc);
+  out.forEach((o,i)=>{o.badge=(o.sc>=3||(i===0&&o.sc>=2))?"rec":(o.sc<0?"less":"ok")});
+  return out;
+}
+const BADGE={rec:"推薦",ok:"可以",less:"少點"};
+
+function renderMains(){
+  const el=document.getElementById("mains");el.innerHTML="";
+  MAINS.forEach(m=>{
+    const b=document.createElement("button");b.className="dish";b.id="main-"+m.id;
+    b.setAttribute("aria-pressed",state.main===m.id);
+    b.innerHTML=`<div class="top"><span class="name">${m.name}</span><span class="kcal">${m.kcal}<small>kcal</small></span></div><div class="desc">${m.desc}</div><div class="tags">${m.tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>`;
+    b.onclick=()=>{state.main=m.id;state.sides=[];state.drink=null;save();render()};
+    el.appendChild(b);
+  });
+}
+function renderOpts(elId,items,key){
+  const el=document.getElementById(elId);el.innerHTML="";
+  items.forEach(o=>{
+    const x=o.x,b=document.createElement("button");
+    b.className="opt"+(o.badge==="less"?" low":"");b.id=key+"-"+x.id;
+    const on=key==="side"?state.sides.includes(x.id):state.drink===x.id;
+    b.setAttribute("aria-pressed",on);
+    const rs=o.r.slice(0,3).map(([t,g])=>`<li class="${g?"":"neg"}">${t}</li>`).join("");
+    b.innerHTML=`<span class="name">${x.name}<span class="badge ${o.badge}">${BADGE[o.badge]}</span></span><span class="kcal">+${x.kcal}<small>kcal</small></span><ul class="reasons">${rs}</ul>`;
+    b.onclick=()=>{
+      if(key==="side"){state.sides=on?state.sides.filter(i=>i!==x.id):[...state.sides,x.id].slice(-2)}
+      else state.drink=on?null:x.id;
+      save();render()};
+    el.appendChild(b);
+  });
+}
+function renderDash(m,sides,d){
+  const items=[m,...sides,d].filter(Boolean);
+  const sum=k=>items.reduce((a,i)=>a+i[k],0);
+  const kcal=sum("kcal"),P=sum("P"),C=sum("C"),F=sum("F"),Na=sum("Na"),T=state.target;
+  document.getElementById("total").textContent=kcal;
+  document.getElementById("of").textContent=`/ ${T} kcal`;
+  const over=kcal>T;
+  document.getElementById("meter").className="meter"+(over?" over":"");
+  document.getElementById("meterBar").style.width=Math.min(100,kcal/T*100)+"%";
+  const st=document.getElementById("status");
+  st.className="status "+(over?"over":"ok");
+  st.textContent=over?`超過目標 ${kcal-T} kcal`:`還有 ${T-kcal} kcal 的空間`;
+  // targets
+  const tg=document.getElementById("targets");tg.innerHTML="";
+  TARGETS.forEach(t=>{const b=document.createElement("button");b.id="target-"+t.v;b.setAttribute("aria-pressed",T===t.v);b.innerHTML=`<b>${t.v}</b>${t.l}`;b.onclick=()=>{state.target=t.v;save();render()};tg.appendChild(b)});
+  // rows
+  const sideRows=sides.length?sides.map(x=>["附餐",x]):[["附餐",null]];
+  document.getElementById("rows").innerHTML=[["主菜",m],...sideRows,["飲料／湯",d]].map(([l,x])=>x?`<tr><td>${l}・${x.name}</td><td>${x.kcal}</td></tr>`:`<tr><td class="empty">${l}・尚未選擇</td><td class="empty">—</td></tr>`).join("");
+  // carbon
+  const co2=mealItems().reduce((a,i)=>a+carbon(i.key).total,0);
+  const [cl,cc]=lv(co2/2);
+  const dc=document.getElementById("dashCo2");dc.className="co2 "+cc;dc.textContent=`${kg(co2)} kg CO₂e`;
+  // macros
+  const pk=P*4,ck=C*4,fk=F*9,tot=pk+ck+fk||1;
+  const pp=Math.round(pk/tot*100),fp=Math.round(fk/tot*100),cp=100-pp-fp;
+  document.getElementById("macro").innerHTML=`<i style="flex-basis:${pp}%;background:var(--p)"></i><i style="flex-basis:${cp}%;background:var(--c)"></i><i style="flex-basis:${fp}%;background:var(--f)"></i>`;
+  document.getElementById("legend").innerHTML=
+   `<div><span><i class="dot" style="background:var(--p)"></i>蛋白質</span><b>${pp}%</b><span class="ref">建議 10–20%</span></div>`+
+   `<div><span><i class="dot" style="background:var(--c)"></i>醣類</span><b>${cp}%</b><span class="ref">建議 50–60%</span></div>`+
+   `<div><span><i class="dot" style="background:var(--f)"></i>脂肪</span><b>${fp}%</b><span class="ref">建議 20–30%</span></div>`;
+  // sodium
+  document.getElementById("naMeter").className="meter"+(Na>800?" over":"");
+  document.getElementById("naBar").style.width=Math.min(100,Na/800*100)+"%";
+  document.getElementById("naText").textContent=`${Na} mg`+(Na>800?`（超過 ${Na-800} mg）`:"");
+  // benefits
+  const good=[],tips=[];
+  if(!over)good.push(`總熱量 ${kcal} kcal，在一餐目標 ${T} kcal 以內，不容易吃過量。`);
+  else tips.push(`總熱量超過目標 ${kcal-T} kcal。可以把附餐換成蔬菜、飲料換成無糖茶，或白飯減半。`);
+  if(pp>=10&&pp<=25)good.push(`蛋白質占 ${pp}%，足夠支持成長期的肌肉修復，也讓人比較耐餓。`);
+  else if(pp<10)tips.push(`蛋白質只占 ${pp}%，偏低。附餐可選豆腐或茶碗蒸，或喝無糖豆漿。`);
+  else good.push(`蛋白質占 ${pp}%，比例偏高但不是壞事，記得搭配蔬菜。`);
+  if(fp<=30)good.push(`脂肪占 ${fp}%，在建議範圍內，對心血管比較友善。`);
+  else tips.push(`脂肪占 ${fp}%，高於建議的 20–30%。避免再加油炸附餐或濃湯。`);
+  const vegN=sides.filter(x=>has(x,"veg")).length+(sides.some(x=>has(x,"fruit"))?0.5:0)+(d&&has(d,"vegsoup")?0.5:0);
+  if(vegN>=1)good.push("有搭配蔬菜，膳食纖維能幫助消化、讓血糖上升得比較慢。");
+  else tips.push("這餐沒有蔬菜，附餐建議選一份燙青菜或烤時蔬。");
+  const carbSide=sides.find(x=>has(x,"carb")&&!has(x,"fried"));
+  if(carbSide&&has(carbSide,"whole"))good.push(`主食選了${carbSide.name.replace(/（.*）/,"")}，屬於全穀／根莖類，纖維比白飯多。`);
+  else if(carbSide)good.push("有一份主食提供能量，下午上課比較不會餓。");
+  else if(sides.length)tips.push("這餐沒有主食（飯或地瓜），醣類可能不夠，容易很快又餓。");
+  if(d&&has(d,"sugar"))tips.push("全糖手搖飲的糖量已超過每日添加糖建議（約 50 g 以下），可改成無糖或微糖。");
+  else if(d)good.push("飲品沒有大量添加糖，熱量用在真正有營養的食物上。");
+  if(Na<=800)good.push(`鈉約 ${Na} mg，在一餐參考量內（每日 2400 mg ÷ 3）。`);
+  else tips.push(`鈉約 ${Na} mg，超過一餐參考量 800 mg。湯少喝幾口、醬汁不要淋太多。`);
+  if(!sides.length)tips.push("還沒選附餐，建議一份主食加一份蔬菜，參考標示「推薦」的選項。");
+  if(!d)tips.push("還沒選飲料或湯，參考下方標示「推薦」的選項。");
+  document.getElementById("good").innerHTML=good.map(t=>`<li>${t}</li>`).join("")||"<li>選好餐點後，這裡會列出搭配的好處。</li>";
+  document.getElementById("tips").innerHTML=tips.map(t=>`<li>${t}</li>`).join("");
+  document.getElementById("tipWrap").hidden=!tips.length;
+}
+function render(){
+  const m=byId(MAINS,state.main),T=state.target;
+  renderMains();
+  const picked=state.sides.map(i=>byId(SIDES,i)).filter(Boolean);
+  const sides=ranked(SIDES,x=>scoreSide(x,m,T,picked));
+  const drinks=ranked(DRINKS,x=>scoreDrink(x,m,T,picked));
+  renderOpts("sides",sides,"side");
+  renderOpts("drinks",drinks,"drink");
+  renderDash(m,picked,byId(DRINKS,state.drink));
+}
+
+// ===== 確認頁 =====
+function mealItems(){
+  const out=[{cat:"主菜",key:"main:"+state.main,x:byId(MAINS,state.main),pool:MAINS,pre:"main"}];
+  state.sides.forEach(i=>{const x=byId(SIDES,i);if(x)out.push({cat:"附餐",key:"side:"+i,x,pool:SIDES,pre:"side"})});
+  const d=byId(DRINKS,state.drink);if(d)out.push({cat:"飲料／湯",key:"drink:"+d.id,x:d,pool:DRINKS,pre:"drink"});
+  return out;
+}
+const PALETTE=["var(--leaf)","var(--c)","var(--f)","var(--muted)"];
+function renderConfirm(){
+  const items=mealItems().map(i=>({...i,c:carbon(i.key)}));
+  const list=document.getElementById("cList");
+  let html=items.map(i=>`<li class="c-item"><div class="c-cat">${i.cat}</div><div class="c-name">${i.x.name}</div><div class="c-meta"><span class="kcal">${i.x.kcal}<small>kcal</small></span>${co2Tag(i.c.total)}<span>${TRACE[i.key].place}</span></div><button class="story-btn" type="button" data-key="${i.key}" data-name="${i.x.name}">產銷故事 ›</button></li>`).join("");
+  if(!state.sides.length)html+=`<li class="c-empty">沒有選附餐。建議一份主食加一份蔬菜，可以按「返回修改」補選。</li>`;
+  if(!state.drink)html+=`<li class="c-empty">沒有選飲料或湯。</li>`;
+  list.innerHTML=html;
+  list.querySelectorAll(".story-btn").forEach(b=>b.onclick=()=>openStory(b.dataset.key,b.dataset.name));
+  // summary
+  const kcal=items.reduce((a,i)=>a+i.x.kcal,0),co2=items.reduce((a,i)=>a+i.c.total,0);
+  const sorted=[...items].sort((a,b)=>b.c.total-a.c.total);
+  const bar=sorted.map((i,n)=>`<i style="flex-basis:${i.c.total/co2*100}%;background:${PALETTE[n%4]}"></i>`).join("");
+  const keys=sorted.map((i,n)=>`<li><span><i class="dot" style="background:${PALETTE[n%4]}"></i>${i.x.name}</span><span>${kg(i.c.total)}・${Math.round(i.c.total/co2*100)}%</span></li>`).join("");
+  // 減碳建議：最高的那道換成同類別最低碳的選項
+  const top=sorted[0];
+  const alt=top.pool.filter(x=>x.id!==top.x.id&&!(top.pre==="side"&&state.sides.includes(x.id)))
+    .map(x=>({x,v:carbon(top.pre+":"+x.id).total})).sort((a,b)=>a.v-b.v)[0];
+  const swap=alt&&top.c.total-alt.v>0.3?`<li>這餐碳足跡最高的是「${top.x.name}」。如果換成「${alt.x.name}」，大約可以少 ${kg(top.c.total-alt.v)} kg CO₂e。</li>`:`<li>這餐每一道的碳足跡都不高，是很棒的低碳組合！</li>`;
+  document.getElementById("cSum").innerHTML=`
+    <div><div class="dash-label">本餐熱量</div><div class="big"><span class="num">${kcal}</span><span class="of">/ ${state.target} kcal</span></div></div>
+    <div><div class="dash-label">本餐碳足跡</div><div class="big"><span class="num">${kg(co2)}</span><span class="of">kg CO₂e</span></div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px">≈ 騎機車 ${(co2/SCOOTER).toFixed(1)} 公里的排放</div></div>
+    <div><div class="dash-label" style="margin-bottom:8px">各道菜占比</div><div class="stack">${bar}</div><ul class="keys">${keys}</ul></div>
+    <div><div class="dash-label" style="margin-bottom:8px">減碳小建議</div><ul class="list tip">${swap}</ul></div>
+    <p class="note">產銷履歷中的農場與人物皆為<b>虛擬教學範例</b>。碳足跡 = 食材生產 + 運輸 + 烹調用電 + 包裝，係數為公開文獻的約略值，用來比較不同選擇的高低，不代表精確數字。</p>`;
+}
+function openStory(key,name){
+  const t=TRACE[key],c=carbon(key);
+  const code=`TW-${t.date.replace(/-/g,"").slice(2)}-${key.split(":")[0].slice(0,2).toUpperCase()}${String(Object.keys(TRACE).indexOf(key)+1).padStart(2,"0")}`;
+  const route=`<span class="node">${t.place}</span>`+c.legs.map(l=>`<span class="leg">→ ${MODE[l.m]} ${l.km.toLocaleString()} km →</span>`).join(`<span class="node">轉運</span>`)+`<span class="node">內壢高中餐廳</span>`;
+  const parts=[["食材生產",c.prodSum,"var(--leaf)"],["運輸",c.trans,"var(--c)"],["烹調用電",c.cook,"var(--f)"],["包裝",c.pack,"var(--muted)"]].filter(p=>p[1]>0);
+  const rows=
+    `<tr><td class="grp" colspan="2">食材生產</td><td>${kg(c.prodSum)}</td></tr>`+
+    c.prod.map(p=>`<tr><td>　${p.n}</td><td class="f">${p.g} g × ${p.ef}</td><td>${kg(p.v)}</td></tr>`).join("")+
+    `<tr><td class="grp" colspan="2">運輸</td><td>${kg(c.trans)}</td></tr>`+
+    c.legs.map(l=>`<tr><td>　${MODE[l.m]}</td><td class="f">${c.w.toFixed(2)} kg × ${l.km.toLocaleString()} km × ${EF_T[l.m]}</td><td>${kg(l.v)}</td></tr>`).join("")+
+    `<tr><td class="grp">烹調用電</td><td class="f">${t.kwh} kWh × ${GRID}</td><td>${kg(c.cook)}</td></tr>`+
+    (c.pack?`<tr><td class="grp">包裝</td><td class="f">塑膠杯、吸管</td><td>${kg(c.pack)}</td></tr>`:"")+
+    `<tr class="total"><td colspan="2">合計</td><td>${kg(c.total)} kg CO₂e</td></tr>`;
+  document.getElementById("dBody").innerHTML=`
+    <div class="d-top"><div><div class="eyebrow">產銷履歷 · 虛擬範例</div><h3 id="dTitle">${name}</h3></div><button class="x" type="button" aria-label="關閉" id="dClose">×</button></div>
+    <dl class="facts"><dt>生產單位</dt><dd>${t.farm}</dd><dt>產地</dt><dd>${t.place}</dd><dt>生產者</dt><dd>${t.who}</dd><dt>${t.dl}</dt><dd class="mono">${t.date}</dd><dt>履歷編號</dt><dd class="mono">${code}</dd></dl>
+    <p class="story-text">${t.story}</p>
+    <div><div class="dash-label" style="margin-bottom:6px">從產地到餐桌</div><div class="route">${route}</div></div>
+    <div>
+      <div class="co2row" style="margin-bottom:8px"><span class="dash-label">碳足跡計算</span>${co2Tag(c.total)}</div>
+      <div class="stack">${parts.map(p=>`<i style="flex-basis:${p[1]/c.total*100}%;background:${p[2]}"></i>`).join("")}</div>
+      <ul class="keys" style="flex-direction:row;flex-wrap:wrap;gap:4px 14px;margin-bottom:8px">${parts.map(p=>`<li><span><i class="dot" style="background:${p[2]}"></i>${p[0]} ${Math.round(p[1]/c.total*100)}%</span></li>`).join("")}</ul>
+      <table class="calc">${rows}</table>
+    </div>
+    <p class="note" style="margin:0">單位：kg CO₂e（二氧化碳當量）。生產係數為每公斤食材的排放，運輸以「重量 × 距離 × 運具係數」計算，用電以台灣電力排放係數 ${GRID} 估算。</p>`;
+  const dlg=document.getElementById("story");
+  document.getElementById("dClose").onclick=()=>dlg.close();
+  dlg.showModal();
+}
+document.getElementById("story").addEventListener("click",e=>{if(e.target.id==="story")e.target.close()});
+
+function showView(v){
+  const c=v==="confirm";
+  if(c)renderConfirm();
+  document.getElementById("orderView").hidden=c;
+  document.getElementById("confirmView").hidden=!c;
+  window.scrollTo(0,0);
+}
+function goConfirm(){history.pushState({v:"confirm"},"","#confirm");showView("confirm")}
+document.getElementById("dashConfirm").onclick=goConfirm;
+document.getElementById("mobileConfirm").onclick=goConfirm;
+document.getElementById("backBtn").onclick=()=>{if(history.state&&history.state.v==="confirm")history.back();else{history.replaceState(null,"",location.pathname);showView("order")}};
+window.addEventListener("popstate",()=>{const dlg=document.getElementById("story");if(dlg.open)dlg.close();showView(location.hash==="#confirm"?"confirm":"order")});
+
+render();
+if(location.hash==="#confirm")showView("confirm");
+</script>
+
+</body>
+</html>
